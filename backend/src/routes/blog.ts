@@ -43,15 +43,6 @@ blogRouter.get("/test", async (c) => {
   return c.text("This is a test route!");
 });
 
-blogRouter.get("/", async (c) => {
-  console.log("GET request received for /api/v1/blog/");
-  return c.text("I am suraj");
-});
-
-blogRouter.get("*", async (c) => {
-  return c.text("This is a catch-all route!");
-});
-
 blogRouter.post("/", async (c) => {
   try {
     const body = await c.req.json();
@@ -129,17 +120,21 @@ blogRouter.get("/allPosts", async (c) => {
   });
 });
 
-blogRouter.get("/:id", async (c) => {
-  const id = c.req.param("id");
+blogRouter.get("/", async (c) => {
+    const id = c.req.param("id")
   const prisma = new PrismaClient({
     datasourceUrl: c.env.DATABASE_URL,
   }).$extends(withAccelerate());
 
   const blog = await prisma.blog.findFirst({
-    where: {},
+    where: {
+        id:Number(id)
+    },
   });
 
-  return c.json({});
+  return c.json({
+    blog
+  });
 });
 blogRouter.get("/", async (c) => {
   const body = await c.req.json();
