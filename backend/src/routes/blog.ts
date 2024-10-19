@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client/edge";
 import { withAccelerate } from "@prisma/extension-accelerate";
+import { createBlogSchema, updateBlogSchema } from "@suraj-9849/common";
 import { Hono } from "hono";
 import { verify } from "hono/jwt";
 
@@ -19,7 +20,7 @@ blogRouter.use("/*", async (c, next) => {
   const authHeader = c.req.header("authorization") || "";
   const token = authHeader.split(" ")[1];
   try {
-    const user = await verify(token, "secretSuraj");
+    const user = await verify(token, c.env.JWT_SECRET);
     console.log(token);
     if (user) {
       c.set("authorId", user.id as number);
@@ -46,6 +47,11 @@ blogRouter.get("/test", async (c) => {
 blogRouter.post("/", async (c) => {
   try {
     const body = await c.req.json();
+    const { success } = createBlogSchema.safeParse(body);
+    if (!success) {
+      c.status(411); //Incorrect Inputs
+      return c.text("Incorrect Inputs");
+    }
     const authorId = c.get("authorId");
 
     const prisma = new PrismaClient({
@@ -77,7 +83,11 @@ blogRouter.post("/", async (c) => {
 
 blogRouter.put("/", async (c) => {
   const body = await c.req.json();
-
+  const {success} = updateBlogSchema.safeParse(body)
+  if(!success){
+    c.status(411) //Incorrect Inputs
+    return c.text("Incorrect Inputs")
+  }
   const prisma = new PrismaClient({
     datasourceUrl: c.env.DATABASE_URL,
   }).$extends(withAccelerate());
@@ -92,7 +102,7 @@ blogRouter.put("/", async (c) => {
   });
 
   return c.json({
-    msg: "Post added SuccessFully!",
+    msg: "Post Updated SuccessFully!",
   });
 });
 
@@ -101,8 +111,8 @@ blogRouter.get("/allPosts", async (c) => {
     datasourceUrl: c.env.DATABASE_URL,
   }).$extends(withAccelerate());
   //Pagination - Has Been Added
-  let limit = parseInt(c.req.query("limit") as string ) || 10;
-  let page = parseInt(c.req.query("page")as string) || 1;
+  let limit = parseInt(c.req.query("limit") as string) || 10;
+  let page = parseInt(c.req.query("page") as string) || 1;
   limit = Math.max(1, limit);
   page = Math.max(1, page);
   const skip = (page - 1) * limit;
@@ -120,32 +130,15 @@ blogRouter.get("/allPosts", async (c) => {
   });
 });
 
-blogRouter.get("/", async (c) => {
-    const id = c.req.param("id")
+blogRouter.post("/:id", async (c) => {
+  const id = c.req.param("id");
   const prisma = new PrismaClient({
     datasourceUrl: c.env.DATABASE_URL,
   }).$extends(withAccelerate());
 
   const blog = await prisma.blog.findFirst({
     where: {
-        id:Number(id)
-    },
-  });
-
-  return c.json({
-    blog
-  });
-});
-blogRouter.get("/", async (c) => {
-  const body = await c.req.json();
-
-  const prisma = new PrismaClient({
-    datasourceUrl: c.env.DATABASE_URL,
-  }).$extends(withAccelerate());
-
-  const blog = await prisma.blog.findFirst({
-    where: {
-      id: body.id,
+      id: Number(id),
     },
   });
 
